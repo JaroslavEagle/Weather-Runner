@@ -1030,6 +1030,12 @@
                 this.slipTimer = 0;
                 this.notificationTimer = 0;
                 
+                // Delta time normalization для кросс-платформенной совместимости
+                this.lastFrameTime = 0;
+                this.targetFPS = 60;
+                this.frameInterval = 1000 / this.targetFPS; // 16.67ms для 60 FPS
+                this.accumulator = 0;
+                
                 this.setupEventListeners();
                 this.setupResizeListener();
                 this.initWeatherParticles();
@@ -1211,8 +1217,13 @@
                     document.getElementById('startScreen').classList.add('hidden');
                     document.getElementById('hud').style.display = 'flex';
                     this.updateHUD();
+                    
+                    // Сброс delta time timers при старте
+                    this.lastFrameTime = 0;
+                    this.accumulator = 0;
+                    
                     this.isRunning = true;
-                    this.gameLoop();
+                    requestAnimationFrame((time) => this.gameLoop(time));
                 }, 2000);
             }
 
@@ -1236,20 +1247,36 @@
                 this.magnetTimer = 0;
                 this.doubleScoreTimer = 0;
                 
+                // Сброс delta time timers
+                this.lastFrameTime = 0;
+                this.accumulator = 0;
+                
                 document.getElementById('gameOverScreen').classList.add('hidden');
                 document.getElementById('hud').style.display = 'flex';
                 this.updateHUD();
                 this.isRunning = true;
-                this.gameLoop();
+                requestAnimationFrame((time) => this.gameLoop(time));
             }
 
-            gameLoop() {
+            gameLoop(currentTime = 0) {
                 if (!this.isRunning || this.isGameOver) return;
                 
-                this.update();
+                // Calculate delta time
+                const deltaTime = currentTime - this.lastFrameTime;
+                this.lastFrameTime = currentTime;
+                
+                // Accumulate time and update in fixed time steps
+                this.accumulator += deltaTime;
+                
+                // Update in fixed time steps to maintain consistent physics
+                while (this.accumulator >= this.frameInterval) {
+                    this.update();
+                    this.accumulator -= this.frameInterval;
+                }
+                
                 this.draw();
                 
-                requestAnimationFrame(() => this.gameLoop());
+                requestAnimationFrame((time) => this.gameLoop(time));
             }
 
             update() {
