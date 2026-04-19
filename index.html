@@ -390,13 +390,43 @@
                 this.groundY = groundY;
                 this.y = groundY - this.height; // Начинаем на земле
                 this.color = '#4169E1';
+                
+                // Двойной прыжок
+                this.jumpCount = 0;
+                this.maxJumps = 2;
+                
+                // Система комикс-фраз
+                this.phrases = [
+                    'Вау!', 'Ого!', 'Ух ты!', 'Круто!', 'Лечу!',
+                    'Выше!', 'Ещё!', 'Прыг!', 'Хоп!', 'Вжух!',
+                    'Небо!', 'Свобода!', 'Полёт!', 'Мощь!', 'Бум!'
+                ];
+                this.currentPhrase = null;
+                this.phraseTimer = 0;
+                this.phraseDuration = 60; // 1 секунда при 60fps
             }
 
             jump() {
-                if (this.isOnGround) {
+                if (this.jumpCount < this.maxJumps) {
                     this.velocityY = this.jumpForce;
                     this.isOnGround = false;
+                    this.jumpCount++;
+                    
+                    // Показать случайную фразу при прыжке
+                    if (this.jumpCount === 1) {
+                        this.showRandomPhrase();
+                    } else if (this.jumpCount === 2) {
+                        // Особая фраза для двойного прыжка
+                        const doubleJumpPhrases = ['Двойной!', 'Супер!', 'Мега!', 'Максимум!'];
+                        this.currentPhrase = doubleJumpPhrases[Math.floor(Math.random() * doubleJumpPhrases.length)];
+                        this.phraseTimer = this.phraseDuration;
+                    }
                 }
+            }
+
+            showRandomPhrase() {
+                this.currentPhrase = this.phrases[Math.floor(Math.random() * this.phrases.length)];
+                this.phraseTimer = this.phraseDuration;
             }
 
             update(currentGravity) {
@@ -409,6 +439,15 @@
                     this.y = this.groundY - this.height;
                     this.velocityY = 0;
                     this.isOnGround = true;
+                    this.jumpCount = 0; // Сброс счётчика прыжков
+                }
+                
+                // Update phrase timer
+                if (this.phraseTimer > 0) {
+                    this.phraseTimer--;
+                    if (this.phraseTimer <= 0) {
+                        this.currentPhrase = null;
+                    }
                 }
             }
 
@@ -421,6 +460,70 @@
                 ctx.fillRect(this.x + 18, this.y + 6, 8, 8);
                 ctx.fillStyle = 'black';
                 ctx.fillRect(this.x + 22, this.y + 8, 4, 4);
+                
+                // Draw comic phrase bubble
+                if (this.currentPhrase && this.phraseTimer > 0) {
+                    this.drawPhraseBubble(ctx);
+                }
+            }
+
+            drawPhraseBubble(ctx) {
+                const bubbleX = this.x + this.width / 2;
+                const bubbleY = this.y - 40;
+                const fontSize = 14;
+                
+                ctx.save();
+                
+                // Calculate text width
+                ctx.font = `bold ${fontSize}px Arial`;
+                const textMetrics = ctx.measureText(this.currentPhrase);
+                const textWidth = textMetrics.width;
+                const padding = 10;
+                const bubbleWidth = textWidth + padding * 2;
+                const bubbleHeight = fontSize + padding * 2;
+                
+                // Fade out effect
+                const alpha = this.phraseTimer / this.phraseDuration;
+                
+                // Draw bubble background (white with border)
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
+                ctx.lineWidth = 2;
+                
+                // Rounded rectangle
+                const radius = 8;
+                ctx.beginPath();
+                ctx.moveTo(bubbleX - bubbleWidth / 2 + radius, bubbleY - bubbleHeight / 2);
+                ctx.lineTo(bubbleX + bubbleWidth / 2 - radius, bubbleY - bubbleHeight / 2);
+                ctx.quadraticCurveTo(bubbleX + bubbleWidth / 2, bubbleY - bubbleHeight / 2, bubbleX + bubbleWidth / 2, bubbleY - bubbleHeight / 2 + radius);
+                ctx.lineTo(bubbleX + bubbleWidth / 2, bubbleY + bubbleHeight / 2 - radius);
+                ctx.quadraticCurveTo(bubbleX + bubbleWidth / 2, bubbleY + bubbleHeight / 2, bubbleX + bubbleWidth / 2 - radius, bubbleY + bubbleHeight / 2);
+                ctx.lineTo(bubbleX - bubbleWidth / 2 + radius, bubbleY + bubbleHeight / 2);
+                ctx.quadraticCurveTo(bubbleX - bubbleWidth / 2, bubbleY + bubbleHeight / 2, bubbleX - bubbleWidth / 2, bubbleY + bubbleHeight / 2 - radius);
+                ctx.lineTo(bubbleX - bubbleWidth / 2, bubbleY - bubbleHeight / 2 + radius);
+                ctx.quadraticCurveTo(bubbleX - bubbleWidth / 2, bubbleY - bubbleHeight / 2, bubbleX - bubbleWidth / 2 + radius, bubbleY - bubbleHeight / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw tail (triangle pointing to player)
+                ctx.beginPath();
+                ctx.moveTo(bubbleX - 5, bubbleY + bubbleHeight / 2);
+                ctx.lineTo(bubbleX + 5, bubbleY + bubbleHeight / 2);
+                ctx.lineTo(bubbleX, bubbleY + bubbleHeight / 2 + 10);
+                ctx.closePath();
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.fill();
+                ctx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
+                ctx.stroke();
+                
+                // Draw text
+                ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.currentPhrase, bubbleX, bubbleY);
+                
+                ctx.restore();
             }
 
             getBounds() {
