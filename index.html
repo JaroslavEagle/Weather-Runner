@@ -1277,6 +1277,8 @@
                 this.score = 0;
                 this.currentSpeed = this.baseSpeed;
                 this.isGameOver = false;
+                this.isGameActive = true; // Активируем игру
+                document.body.classList.add('game-active'); // Разблокируем canvas
                 this.slipTimer = 0;
                 
                 // Сброс power-ups
@@ -1292,7 +1294,11 @@
                 this.lastFrameTime = performance.now();
                 this.accumulator = 0;
                 
-                // isGameActive уже true, игра продолжается
+                // Скрываем экран Game Over
+                document.getElementById('gameOverScreen').classList.add('hidden');
+                document.getElementById('hud').style.display = 'flex';
+                this.updateHUD();
+                
                 this.isRunning = true;
                 requestAnimationFrame((time) => this.gameLoop(time));
             }
