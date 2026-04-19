@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Weather Runner</title>
     <style>
         * {
@@ -219,6 +222,9 @@
             <div class="score-display">
                 <span>Score: </span><span id="scoreDisplay">0</span>
             </div>
+            <div class="jump-hint" id="jumpHint" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); color: white; font-size: 14px; opacity: 0.7; text-shadow: 1px 1px 2px black; pointer-events: none;">
+                Двойной прыжок: нажмите ещё раз в воздухе! ⬆️⬆️
+            </div>
         </div>
 
         <!-- Notification -->
@@ -426,12 +432,16 @@
                     // Показать случайную фразу при прыжке
                     if (this.jumpCount === 1) {
                         this.showRandomPhrase();
+                        console.log('Первый прыжок!');
                     } else if (this.jumpCount === 2) {
                         // Особая фраза для двойного прыжка
                         const doubleJumpPhrases = ['Двойной!', 'Супер!', 'Мега!', 'Максимум!'];
                         this.currentPhrase = doubleJumpPhrases[Math.floor(Math.random() * doubleJumpPhrases.length)];
                         this.phraseTimer = this.phraseDuration;
+                        console.log('Двойной прыжок!');
                     }
+                } else {
+                    console.log('Прыжки исчерпаны (jumpCount:', this.jumpCount, ')');
                 }
             }
 
@@ -472,10 +482,37 @@
                 ctx.fillStyle = 'black';
                 ctx.fillRect(this.x + 22, this.y + 8, 4, 4);
                 
+                // Draw jump indicator (dots showing remaining jumps)
+                if (!this.isOnGround && this.jumpCount < this.maxJumps) {
+                    this.drawJumpIndicator(ctx);
+                }
+                
                 // Draw comic phrase bubble
                 if (this.currentPhrase && this.phraseTimer > 0) {
                     this.drawPhraseBubble(ctx);
                 }
+            }
+
+            drawJumpIndicator(ctx) {
+                const remainingJumps = this.maxJumps - this.jumpCount;
+                const startX = this.x + this.width / 2 - (remainingJumps * 8) / 2;
+                const indicatorY = this.y - 15;
+                
+                ctx.save();
+                for (let i = 0; i < remainingJumps; i++) {
+                    // Draw small star/circle for each available jump
+                    ctx.fillStyle = '#FFD700'; // Gold color
+                    ctx.beginPath();
+                    ctx.arc(startX + i * 8 + 4, indicatorY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Add glow effect
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 5;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+                ctx.restore();
             }
 
             drawPhraseBubble(ctx) {
@@ -1259,6 +1296,19 @@
                 document.getElementById('startScreen').classList.add('hidden');
                 document.getElementById('hud').style.display = 'flex';
                 this.updateHUD();
+                
+                // Показываем подсказку о двойном прыжке на 5 секунд
+                const jumpHint = document.getElementById('jumpHint');
+                if (jumpHint) {
+                    jumpHint.style.display = 'block';
+                    setTimeout(() => {
+                        jumpHint.style.opacity = '0';
+                        jumpHint.style.transition = 'opacity 1s';
+                        setTimeout(() => {
+                            jumpHint.style.display = 'none';
+                        }, 1000);
+                    }, 5000);
+                }
                 
                 // Сброс delta time timers при старте
                 this.lastFrameTime = performance.now();
