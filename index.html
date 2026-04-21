@@ -284,25 +284,30 @@
         // ==========================================
         class WeatherService {
             constructor() {
-                this.API_KEY = '4158b1f227860e4af6d07780f070954b';
                 this.weatherData = null;
             }
 
             async getCurrentWeatherByCoords(lat, lon) {
                 try {
+                    // Open-Meteo API - бесплатный, без ключа
                     const response = await fetch(
-                        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${this.API_KEY}&units=metric&lang=ru`
+                        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`
                     );
                     
                     if (!response.ok) throw new Error('Weather API error');
                     
                     const data = await response.json();
+                    const currentWeather = data.current_weather;
+                    
+                    // Маппинг WMO weather codes Open-Meteo на наши коды
+                    const mappedCode = this.mapWMOCodeToGameCode(currentWeather.weathercode);
+                    
                     this.weatherData = {
-                        temp: Math.round(data.main.temp),
-                        weatherCode: data.weather[0].id,
-                        description: data.weather[0].description,
-                        icon: this.getWeatherIcon(data.weather[0].id),
-                        cityName: data.name
+                        temp: Math.round(currentWeather.temperature),
+                        weatherCode: mappedCode.gameCode,
+                        description: mappedCode.description,
+                        icon: mappedCode.icon,
+                        cityName: 'Your Location'
                     };
                     
                     return this.weatherData;
@@ -314,22 +319,25 @@
 
             async getCurrentWeatherByCity(cityName) {
                 try {
-                    const response = await fetch(
-                        `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(cityName)}&appid=${this.API_KEY}&units=metric&lang=ru`
+                    // Сначала получаем координаты города через геокодинг Open-Meteo
+                    const geoResponse = await fetch(
+                        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru&format=json`
                     );
                     
-                    if (!response.ok) throw new Error('City not found');
+                    if (!geoResponse.ok) throw new Error('City not found');
                     
-                    const data = await response.json();
-                    this.weatherData = {
-                        temp: Math.round(data.main.temp),
-                        weatherCode: data.weather[0].id,
-                        description: data.weather[0].description,
-                        icon: this.getWeatherIcon(data.weather[0].id),
-                        cityName: data.name
-                    };
+                    const geoData = await geoResponse.json();
                     
-                    return this.weatherData;
+                    if (!geoData.results || geoData.results.length === 0) {
+                        throw new Error('City not found');
+                    }
+                    
+                    const location = geoData.results[0];
+                    const lat = location.latitude;
+                    const lon = location.longitude;
+                    
+                    // Теперь получаем погоду по координатам
+                    return await this.getCurrentWeatherByCoords(lat, lon);
                 } catch (error) {
                     console.warn('Weather API failed:', error);
                     throw error;
@@ -363,6 +371,28 @@
                         (error) => reject(error)
                     );
                 });
+            }
+
+            // Маппинг WMO Weather interpretation codes (Open-Meteo) на игровые коды
+            mapWMOCodeToGameCode(wmoCode) {
+                // WMO codes: https://open-meteo.com/en/docs
+                if (wmoCode === 0 || wmoCode === 1) {
+                    return { gameCode: 800, description: 'clear sky', icon: '☀️' };
+                }
+                if (wmoCode === 2 || wmoCode === 3) {
+                    return { gameCode: 801, description: 'partly cloudy', icon: '⛅' };
+                }
+                if ((wmoCode >= 51 && wmoCode <= 67) || (wmoCode >= 80 && wmoCode <= 82)) {
+                    return { gameCode: 500, description: 'rain', icon: '🌧' };
+                }
+                if (wmoCode >= 95 && wmoCode <= 99) {
+                    return { gameCode: 200, description: 'thunderstorm', icon: '⛈' };
+                }
+                if ((wmoCode >= 71 && wmoCode <= 77) || (wmoCode >= 85 && wmoCode <= 86)) {
+                    return { gameCode: 600, description: 'snow', icon: '❄️' };
+                }
+                // По умолчанию - ясно
+                return { gameCode: 800, description: 'clear sky', icon: '☀️' };
             }
 
             getWeatherIcon(code) {
